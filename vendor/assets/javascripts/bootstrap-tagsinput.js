@@ -58,12 +58,14 @@
     add: function(item, dontPushVal) {
       var self = this;
 
-      if (self.options.maxTags && self.itemsArray.length >= self.options.maxTags)
+      if (self.options.maxTags && self.itemsArray.length >= self.options.maxTags) {
         return;
+      }
 
       // Ignore falsey values, except false
-      if (item !== false && !item)
+      if (item !== false && !item) {
         return;
+      }
 
       // Trim value
       if (typeof item === "string" && self.options.trimValue) {
@@ -71,16 +73,19 @@
       }
 
       // Throw an error when trying to add an object while the itemValue option was not set
-      if (typeof item === "object" && !self.objectItems)
+      if (typeof item === "object" && !self.objectItems) {
         throw("Can't add objects when itemValue option is not set");
+      }
 
       // Ignore strings only containg whitespace
-      if (item.toString().match(/^\s*$/))
+      if (item.toString().match(/^\s*$/)) {
         return;
+      }
 
       // If SELECT but not multiple, remove current tag
-      if (self.isSelect && !self.multiple && self.itemsArray.length > 0)
+      if (self.isSelect && !self.multiple && self.itemsArray.length > 0) {
         self.remove(self.itemsArray[0]);
+      }
 
       if (typeof item === "string" && this.$element[0].tagName === 'INPUT') {
         var items = item.split(',');
@@ -89,8 +94,7 @@
             this.add(items[i], true);
           }
 
-          if (!dontPushVal)
-            self.pushVal();
+          if (!dontPushVal) { self.pushVal(); }
           return;
         }
       }
@@ -111,14 +115,16 @@
       }
 
       // if length greater than limit
-      if (self.items().toString().length + item.length + 1 > self.options.maxInputLength)
+      if (self.items().toString().length + item.length + 1 > self.options.maxInputLength) {
         return;
+      }
 
       // raise beforeItemAdd arg
       var beforeItemAddEvent = $.Event('beforeItemAdd', { item: item, cancel: false });
       self.$element.trigger(beforeItemAddEvent);
-      if (beforeItemAddEvent.cancel)
+      if (beforeItemAddEvent.cancel) {
         return;
+      }
 
       // register item in internal array and map
       self.itemsArray.push(item);
@@ -137,14 +143,21 @@
         self.$element.append($option);
       }
 
-      if (!dontPushVal)
+      if (!dontPushVal) {
         self.pushVal();
+      }
 
       // Add class when reached maxTags
-      if (self.options.maxTags === self.itemsArray.length || self.items().toString().length === self.options.maxInputLength)
+      if (self.options.maxTags === self.itemsArray.length || self.items().toString().length === self.options.maxInputLength) {
         self.$container.addClass('bootstrap-tagsinput-max');
+      }
 
       self.$element.trigger($.Event('itemAdded', { item: item }));
+
+      // Clear the typeahead input after adding the tag
+      // typeahead version 0.10.5 onwards
+      // Ref: https://github.com/twitter/typeahead.js/issues/233
+      self.$input.typeahead('val','');
     },
 
     /**
@@ -155,10 +168,11 @@
       var self = this;
 
       if (self.objectItems) {
-        if (typeof item === "object")
+        if (typeof item === "object") {
           item = $.grep(self.itemsArray, function(other) { return self.options.itemValue(other) ==  self.options.itemValue(item); } );
-        else
+        } else {
           item = $.grep(self.itemsArray, function(other) { return self.options.itemValue(other) ==  item; } );
+        }
 
         item = item[item.length-1];
       }
@@ -166,21 +180,25 @@
       if (item) {
         var beforeItemRemoveEvent = $.Event('beforeItemRemove', { item: item, cancel: false });
         self.$element.trigger(beforeItemRemoveEvent);
-        if (beforeItemRemoveEvent.cancel)
+        if (beforeItemRemoveEvent.cancel) {
           return;
+        }
 
         $('.tag', self.$container).filter(function() { return $(this).data('item') === item; }).remove();
         $('option', self.$element).filter(function() { return $(this).data('item') === item; }).remove();
-        if($.inArray(item, self.itemsArray) !== -1)
+        if($.inArray(item, self.itemsArray) !== -1) {
           self.itemsArray.splice($.inArray(item, self.itemsArray), 1);
+        }
       }
 
-      if (!dontPushVal)
+      if (!dontPushVal) {
         self.pushVal();
+      }
 
       // Remove class when reached maxTags
-      if (self.options.maxTags > self.itemsArray.length)
+      if (self.options.maxTags > self.itemsArray.length) {
         self.$container.removeClass('bootstrap-tagsinput-max');
+      }
 
       self.$element.trigger($.Event('itemRemoved',  { item: item }));
     },
@@ -194,8 +212,9 @@
       $('.tag', self.$container).remove();
       $('option', self.$element).remove();
 
-      while(self.itemsArray.length > 0)
+      while(self.itemsArray.length > 0) {
         self.itemsArray.pop();
+      }
 
       self.pushVal();
     },
@@ -255,73 +274,24 @@
 
       self.options = $.extend({}, defaultOptions, options);
       // When itemValue is set, freeInput should always be false
-      if (self.objectItems)
+      if (self.objectItems) {
         self.options.freeInput = false;
+      }
 
       makeOptionItemFunction(self.options, 'itemValue');
       makeOptionItemFunction(self.options, 'itemText');
       makeOptionFunction(self.options, 'tagClass');
-      
-      // Typeahead Bootstrap version 2.3.2
-      if (self.options.typeahead) {
-        var typeahead = self.options.typeahead || {};
-
-        makeOptionFunction(typeahead, 'source');
-
-        self.$input.typeahead($.extend({}, typeahead, {
-          source: function (query, process) {
-            function processItems(items) {
-              var texts = [];
-
-              for (var i = 0; i < items.length; i++) {
-                var text = self.options.itemText(items[i]);
-                map[text] = items[i];
-                texts.push(text);
-              }
-              process(texts);
-            }
-
-            this.map = {};
-            var map = this.map,
-                data = typeahead.source(query);
-
-            if ($.isFunction(data.success)) {
-              // support for Angular callbacks
-              data.success(processItems);
-            } else if ($.isFunction(data.then)) {
-              // support for Angular promises
-              data.then(processItems);
-            } else {
-              // support for functions and jquery promises
-              $.when(data)
-               .then(processItems);
-            }
-          },
-          updater: function (text) {
-            self.add(this.map[text]);
-          },
-          matcher: function (text) {
-            return (text.toLowerCase().indexOf(this.query.trim().toLowerCase()) !== -1);
-          },
-          sorter: function (texts) {
-            return texts.sort();
-          },
-          highlighter: function (text) {
-            var regex = new RegExp( '(' + this.query + ')', 'gi' );
-            return text.replace( regex, "<strong>$1</strong>" );
-          }
-        }));
-      }
 
       // typeahead.js
       if (self.options.typeaheadjs) {
           var typeaheadjs = self.options.typeaheadjs || {};
-          
+
           self.$input.typeahead(null, typeaheadjs).on('typeahead:selected', $.proxy(function (obj, datum) {
-            if (typeaheadjs.valueKey)
+            if (typeaheadjs.valueKey) {
               self.add(datum[typeaheadjs.valueKey]);
-            else
+            } else {
               self.add(datum);
+            }
             self.$input.typeahead('val', '');
           }, self));
       }
@@ -333,17 +303,16 @@
         self.$input.focus();
       }, self));
 
-        if (self.options.addOnBlur && self.options.freeInput) {
-          self.$input.on('focusout', $.proxy(function(event) {
-              // HACK: only process on focusout when no typeahead opened, to
-              //       avoid adding the typeahead text as tag
-              if ($('.typeahead, .twitter-typeahead', self.$container).length === 0) {
-                self.add(self.$input.val());
-                self.$input.val('');
-              }
-          }, self));
-        }
-        
+      if (self.options.addOnBlur && self.options.freeInput) {
+        self.$input.on('focusout', $.proxy(function(event) {
+            // HACK: only process on focusout when no typeahead opened, to
+            //       avoid adding the typeahead text as tag
+            if ($('.typeahead, .twitter-typeahead', self.$container).length === 0) {
+              self.add(self.$input.val());
+              self.$input.val('');
+            }
+        }, self));
+      }
 
       self.$container.on('keydown', 'input', $.proxy(function(event) {
         var $input = $(event.target),
@@ -483,8 +452,9 @@
     findInputWrapper: function() {
       var elt = this.$input[0],
           container = this.$container[0];
-      while(elt && elt.parentNode !== container)
+      while(elt && elt.parentNode !== container) {
         elt = elt.parentNode;
+      }
 
       return $(elt);
     }
@@ -517,8 +487,9 @@
       } else if(tagsinput[arg1] !== undefined) {
           // Invoke function on existing tags input
           var retVal = tagsinput[arg1](arg2);
-          if (retVal !== undefined)
+          if (retVal !== undefined) {
               results.push(retVal);
+          }
       }
     });
 
@@ -579,7 +550,7 @@
   }
 
   /**
-    * Returns boolean indicates whether user has pressed an expected key combination. 
+    * Returns boolean indicates whether user has pressed an expected key combination.
     * @param object keyPressEvent: JavaScript event object, refer
     *     http://www.w3.org/TR/2003/WD-DOM-Level-3-Events-20030331/ecma-script-binding.html
     * @param object lookupList: expected key combinations, as in:
